@@ -40,8 +40,8 @@ export default function LandingPage() {
             <a href="#features" className="text-sm text-gray-600 hover:text-emerald-600">Fonctionnalités</a>
             <a href="#pricing" className="text-sm text-gray-600 hover:text-emerald-600">Tarifs</a>
             <Link href="/login" className="text-sm text-gray-600 hover:text-emerald-600">Connexion</Link>
-            <Link href="/register">
-              <Button>Commencer gratuitement</Button>
+            <Link href="/login">
+              <Button>Espace restaurant</Button>
             </Link>
           </div>
         </div>
@@ -64,17 +64,20 @@ export default function LandingPage() {
               Tout ce dont votre restaurant a besoin, en une seule plateforme.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/register">
+              <Link href="/menu/le-riad-casablanca">
                 <Button size="lg" className="gap-2">
-                  Démarrer gratuitement <ArrowRight className="w-4 h-4" />
+                  <QrCode className="w-4 h-4" /> Voir une démo menu
                 </Button>
               </Link>
-              <Link href="/menu/le-riad-casablanca">
+              <Link href="/login">
                 <Button size="lg" variant="outline" className="gap-2">
-                  <QrCode className="w-4 h-4" /> Voir une démo
+                  Espace restaurant <ArrowRight className="w-4 h-4" />
                 </Button>
               </Link>
             </div>
+            <p className="text-sm text-gray-500 mt-6">
+              Plateforme sur invitation — contactez MenuFlow pour rejoindre
+            </p>
           </motion.div>
 
           {/* Stats */}
@@ -161,9 +164,9 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link href="/register">
+                <Link href="/login">
                   <Button variant={plan.popular ? 'default' : 'outline'} className="w-full">
-                    {plan.price === '0' ? 'Commencer' : 'Choisir'}
+                    Nous contacter
                   </Button>
                 </Link>
               </div>
@@ -178,9 +181,9 @@ export default function LandingPage() {
           <Globe className="w-12 h-12 mx-auto mb-6 opacity-80" />
           <h2 className="text-3xl md:text-4xl font-bold mb-4">Prêt à transformer votre restaurant ?</h2>
           <p className="text-emerald-100 mb-8 text-lg">Rejoignez des centaines de restaurants au Maroc qui utilisent MenuFlow</p>
-          <Link href="/register">
+          <Link href="/login">
             <Button size="lg" variant="secondary" className="gap-2">
-              Créer mon compte gratuit <ArrowRight className="w-4 h-4" />
+              Espace restaurant <ArrowRight className="w-4 h-4" />
             </Button>
           </Link>
         </div>

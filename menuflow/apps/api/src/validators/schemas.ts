@@ -1,16 +1,5 @@
 import { z } from 'zod';
 
-export const registerSchema = z.object({
-  body: z.object({
-    name: z.string().min(2, 'Nom requis'),
-    email: z.string().email('Email invalide'),
-    password: z.string().min(8, 'Mot de passe minimum 8 caractères'),
-    phone: z.string().optional(),
-    restaurantName: z.string().min(2, 'Nom du restaurant requis'),
-    city: z.string().optional(),
-  }),
-});
-
 export const loginSchema = z.object({
   body: z.object({
     email: z.string().email(),
@@ -21,6 +10,79 @@ export const loginSchema = z.object({
 export const refreshTokenSchema = z.object({
   body: z.object({
     refreshToken: z.string(),
+  }),
+});
+
+export const paginationSchema = z.object({
+  query: z.object({
+    page: z.coerce.number().int().positive().optional().default(1),
+    limit: z.coerce.number().int().positive().max(100).optional().default(20),
+    search: z.string().optional(),
+    sortBy: z.string().optional(),
+    sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
+    city: z.string().optional(),
+    plan: z.string().optional(),
+    status: z.string().optional(),
+    role: z.string().optional(),
+  }),
+});
+
+export const adminCreateRestaurantSchema = z.object({
+  body: z.object({
+    name: z.string().min(2),
+    city: z.string().optional(),
+    address: z.string().optional(),
+    phone: z.string().optional(),
+    email: z.string().email().optional(),
+    description: z.string().optional(),
+    subscriptionPlan: z.enum(['FREE', 'STARTER', 'PREMIUM', 'ENTERPRISE']).optional(),
+    ownerName: z.string().min(2),
+    ownerEmail: z.string().email(),
+    ownerPassword: z.string().min(8),
+    ownerPhone: z.string().optional(),
+  }),
+});
+
+export const adminUpdateRestaurantSchema = z.object({
+  params: z.object({ id: z.string() }),
+  body: z.object({
+    name: z.string().optional(),
+    city: z.string().optional(),
+    address: z.string().optional(),
+    phone: z.string().optional(),
+    email: z.string().email().optional(),
+    description: z.string().optional(),
+    subscriptionPlan: z.enum(['FREE', 'STARTER', 'PREMIUM', 'ENTERPRISE']).optional(),
+    website: z.string().url().optional(),
+  }),
+});
+
+export const suspendRestaurantSchema = z.object({
+  params: z.object({ id: z.string() }),
+  body: z.object({ reason: z.string().optional() }),
+});
+
+export const adminCreateOwnerSchema = z.object({
+  body: z.object({
+    restaurantId: z.string(),
+    name: z.string().min(2),
+    email: z.string().email(),
+    password: z.string().min(8),
+    phone: z.string().optional(),
+  }),
+});
+
+export const resetPasswordSchema = z.object({
+  params: z.object({ id: z.string() }),
+  body: z.object({ newPassword: z.string().min(8) }),
+});
+
+export const updateSubscriptionAdminSchema = z.object({
+  params: z.object({ id: z.string() }),
+  body: z.object({
+    plan: z.enum(['FREE', 'STARTER', 'PREMIUM', 'ENTERPRISE']).optional(),
+    status: z.enum(['ACTIVE', 'CANCELLED', 'EXPIRED', 'TRIAL']).optional(),
+    endDate: z.string().datetime().optional(),
   }),
 });
 
@@ -99,16 +161,6 @@ export const createReviewSchema = z.object({
   }),
 });
 
-export const paginationSchema = z.object({
-  query: z.object({
-    page: z.coerce.number().int().positive().optional().default(1),
-    limit: z.coerce.number().int().positive().max(100).optional().default(20),
-    search: z.string().optional(),
-    sortBy: z.string().optional(),
-    sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
-  }),
-});
-
 export const createEmployeeSchema = z.object({
   body: z.object({
     name: z.string().min(2),
@@ -144,4 +196,8 @@ export const createTableSchema = z.object({
     number: z.string().min(1),
     capacity: z.number().int().positive().optional(),
   }),
+});
+
+export const platformSettingsSchema = z.object({
+  body: z.record(z.unknown()),
 });

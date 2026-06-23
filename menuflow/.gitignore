@@ -35,6 +35,7 @@ apps/api/prisma/migrations/**/migration_lock.toml
 # Uploads
 uploads/
 tmp/
+backups/
 
 # Docker
 postgres_data/

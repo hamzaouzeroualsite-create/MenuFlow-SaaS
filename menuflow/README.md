@@ -10,7 +10,7 @@ MenuFlow permet aux restaurants de créer un menu digital accessible via QR Code
 |--------|-------------|
 | Frontend | Next.js 15, TypeScript, Tailwind CSS, Shadcn UI, Framer Motion, Recharts |
 | Backend | Node.js, Express.js, PostgreSQL, Prisma ORM, Redis, Socket.io |
-| Auth | JWT + Refresh Tokens, RBAC (Super Admin, Owner, Manager, Employee) |
+| Auth | JWT + Refresh Tokens, RBAC multi-tenant (Super Admin, Restaurant Owner, Manager, Employee) |
 | Paiements | Stripe (+ PayPal, CMI, Payzone prévus) |
 | Infra | Docker, AWS S3, Cloudflare CDN, GitHub Actions CI/CD |
 
@@ -26,6 +26,23 @@ menuflow/
 ├── docker-compose.yml
 └── .github/workflows/ci.yml
 ```
+
+## Modèle Commercial
+
+**Plateforme fermée (invitation uniquement)** — les restaurants ne peuvent pas s'inscrire eux-mêmes.
+
+- Seul le **Super Admin** crée, active, suspend ou supprime les comptes restaurant
+- Onboarding personnalisé par le propriétaire de la plateforme
+- Isolation stricte des données par `restaurantId` (multi-tenant)
+
+## Rôles
+
+| Rôle | Accès |
+|------|-------|
+| `SUPER_ADMIN` | Panel admin complet, tous les restaurants |
+| `RESTAURANT_OWNER` | Dashboard de son restaurant uniquement |
+| `MANAGER` | Opérations restaurant (menu, commandes, réservations) |
+| `EMPLOYEE` | Commandes et cuisine uniquement |
 
 ## Démarrage Rapide
 
@@ -71,9 +88,9 @@ L'application sera disponible sur :
 
 | Rôle | Email | Mot de passe |
 |------|-------|-------------|
-| Super Admin | admin@menuflow.ma | Admin123! |
-| Propriétaire | owner@leriad-casa.ma | Owner123! |
-| Manager | manager@leriad-casa.ma | Owner123! |
+| Super Admin | admin@menuflow.ma | Admin123! | http://localhost:3000/admin |
+| Propriétaire | owner@leriad-casa.ma | Owner123! | http://localhost:3000/dashboard |
+| Manager | manager@leriad-casa.ma | Owner123! | http://localhost:3000/dashboard |
 
 ### Menu Démo
 
@@ -81,7 +98,18 @@ http://localhost:3000/menu/le-riad-casablanca
 
 ## Fonctionnalités
 
-### Dashboard Admin
+### Super Admin Panel (`/admin`)
+
+- Dashboard global (restaurants, revenus, croissance)
+- Gestion restaurants (créer, suspendre, activer, supprimer)
+- Gestion utilisateurs (reset password, impersonation)
+- Abonnements et expirations
+- Monitoring (commandes, réservations)
+- Audit logs et historique connexions
+- Backups manuels/automatiques
+- Paramètres plateforme
+
+### Dashboard Restaurant (`/dashboard`)
 - Dashboard avec statistiques temps réel
 - Gestion du menu (catégories, produits, promotions)
 - Commandes en temps réel avec Socket.io
@@ -118,12 +146,13 @@ http://localhost:3000/menu/le-riad-casablanca
 Documentation Swagger complète disponible sur `/api/docs`.
 
 Endpoints principaux :
-- `POST /api/auth/register` - Inscription
 - `POST /api/auth/login` - Connexion
+- `GET /api/admin/dashboard` - Stats plateforme (Super Admin)
+- `POST /api/admin/restaurants` - Créer restaurant + propriétaire
+- `POST /api/admin/restaurants/:id/suspend` - Suspendre
+- `POST /api/admin/restaurants/:id/impersonate` - Connexion en tant que propriétaire
 - `GET /api/restaurants/slug/:slug` - Menu public
-- `POST /api/restaurants/:id/orders` - Créer commande
-- `GET /api/restaurants/:id/analytics/dashboard` - Statistiques
-- `POST /api/subscriptions/checkout` - Abonnement Stripe
+- `POST /api/restaurants/:id/orders` - Créer commande (client)
 
 ## Docker (Production)
 
@@ -133,13 +162,13 @@ docker compose up -d
 
 ## Sécurité
 
-- JWT avec refresh tokens
+- JWT avec refresh tokens + historique connexions
+- RBAC granulaire par rôle
+- **Isolation multi-tenant** : middleware `enforceTenantAccess` sur toutes les routes restaurant
+- Vérification restaurant actif (non suspendu)
 - Rate limiting (200 req/15min)
-- Helmet.js (XSS, CSRF protection)
-- Validation Zod sur toutes les entrées
-- Prisma ORM (protection SQL injection)
-- Audit logs
-- RBAC granulaire
+- Helmet.js, validation Zod, audit logs complets
+- Impersonation tracée dans les audit logs
 
 ## Licence
 

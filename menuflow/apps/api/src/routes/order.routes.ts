@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler, validate } from '../middleware/validate';
-import { authenticate, authorize, AuthRequest } from '../middleware/auth';
+import { authenticate, authorize } from '../middleware/auth';
+import { enforceTenantAccess, requireActiveRestaurant } from '../middleware/tenant';
 import { createOrderSchema, updateOrderStatusSchema, paginationSchema } from '../validators/schemas';
 import { createOrder, updateOrderStatus, getOrders } from '../services/order.service';
 import { sendSuccess, sendPaginated } from '../utils/response';
@@ -21,16 +22,16 @@ router.post('/', validate(createOrderSchema), asyncHandler(async (req, res) => {
   sendSuccess(res, order, 'Commande créée', 201);
 }));
 
-router.use(authenticate);
+router.use(authenticate, enforceTenantAccess, requireActiveRestaurant);
 
-router.get('/', validate(paginationSchema), asyncHandler(async (req, res) => {
+router.get('/', validate(paginationSchema), authorize(UserRole.RESTAURANT_OWNER, UserRole.MANAGER, UserRole.EMPLOYEE), asyncHandler(async (req, res) => {
   const { page, limit } = req.query as { page: number; limit: number };
   const status = req.query.status as string | undefined;
   const result = await getOrders(req.params.restaurantId, { status, page, limit });
   sendPaginated(res, result.orders, result.total, page, limit);
 }));
 
-router.get('/kitchen', authorize(UserRole.OWNER, UserRole.MANAGER, UserRole.EMPLOYEE), asyncHandler(async (req, res) => {
+router.get('/kitchen', authorize(UserRole.RESTAURANT_OWNER, UserRole.MANAGER, UserRole.EMPLOYEE), asyncHandler(async (req, res) => {
   const result = await getOrders(req.params.restaurantId, {
     status: undefined,
     page: 1,
@@ -40,7 +41,7 @@ router.get('/kitchen', authorize(UserRole.OWNER, UserRole.MANAGER, UserRole.EMPL
   sendSuccess(res, active);
 }));
 
-router.patch('/:id/status', authorize(UserRole.OWNER, UserRole.MANAGER, UserRole.EMPLOYEE), validate(updateOrderStatusSchema), asyncHandler(async (req, res) => {
+router.patch('/:id/status', authorize(UserRole.RESTAURANT_OWNER, UserRole.MANAGER, UserRole.EMPLOYEE), validate(updateOrderStatusSchema), asyncHandler(async (req, res) => {
   const order = await updateOrderStatus(req.params.id, req.params.restaurantId, req.body.status);
   try {
     getIO().to(`restaurant:${req.params.restaurantId}`).emit('order:updated', {

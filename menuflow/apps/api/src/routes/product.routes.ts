@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { asyncHandler, validate } from '../middleware/validate';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 import { createProductSchema, paginationSchema } from '../validators/schemas';
+import { enforceTenantAccess, requireActiveRestaurant } from '../middleware/tenant';
 import { prisma } from '../lib/prisma';
 import { sendSuccess, sendPaginated, AppError } from '../utils/response';
 import { UserRole } from '@menuflow/shared';
@@ -36,9 +37,9 @@ router.get('/:id', asyncHandler(async (req, res) => {
   sendSuccess(res, product);
 }));
 
-router.use(authenticate, authorize(UserRole.OWNER, UserRole.MANAGER, UserRole.EMPLOYEE));
+router.use(authenticate, enforceTenantAccess, requireActiveRestaurant, authorize(UserRole.RESTAURANT_OWNER, UserRole.MANAGER, UserRole.EMPLOYEE));
 
-router.post('/', authorize(UserRole.OWNER, UserRole.MANAGER), validate(createProductSchema), asyncHandler(async (req: AuthRequest, res) => {
+router.post('/', authorize(UserRole.RESTAURANT_OWNER, UserRole.MANAGER), validate(createProductSchema), asyncHandler(async (req: AuthRequest, res) => {
   const product = await prisma.product.create({
     data: { ...req.body, restaurantId: req.params.restaurantId },
     include: { category: true },
@@ -46,7 +47,7 @@ router.post('/', authorize(UserRole.OWNER, UserRole.MANAGER), validate(createPro
   sendSuccess(res, product, 'Produit créé', 201);
 }));
 
-router.put('/:id', authorize(UserRole.OWNER, UserRole.MANAGER), asyncHandler(async (req, res) => {
+router.put('/:id', authorize(UserRole.RESTAURANT_OWNER, UserRole.MANAGER), asyncHandler(async (req, res) => {
   const result = await prisma.product.updateMany({
     where: { id: req.params.id, restaurantId: req.params.restaurantId },
     data: req.body,
@@ -56,7 +57,7 @@ router.put('/:id', authorize(UserRole.OWNER, UserRole.MANAGER), asyncHandler(asy
   sendSuccess(res, product, 'Produit mis à jour');
 }));
 
-router.patch('/:id/toggle', authorize(UserRole.OWNER, UserRole.MANAGER, UserRole.EMPLOYEE), asyncHandler(async (req, res) => {
+router.patch('/:id/toggle', authorize(UserRole.RESTAURANT_OWNER, UserRole.MANAGER, UserRole.EMPLOYEE), asyncHandler(async (req, res) => {
   const product = await prisma.product.findFirst({
     where: { id: req.params.id, restaurantId: req.params.restaurantId },
   });
@@ -68,7 +69,7 @@ router.patch('/:id/toggle', authorize(UserRole.OWNER, UserRole.MANAGER, UserRole
   sendSuccess(res, updated);
 }));
 
-router.delete('/:id', authorize(UserRole.OWNER, UserRole.MANAGER), asyncHandler(async (req, res) => {
+router.delete('/:id', authorize(UserRole.RESTAURANT_OWNER, UserRole.MANAGER), asyncHandler(async (req, res) => {
   await prisma.product.deleteMany({
     where: { id: req.params.id, restaurantId: req.params.restaurantId },
   });

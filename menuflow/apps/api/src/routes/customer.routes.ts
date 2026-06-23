@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler, validate } from '../middleware/validate';
 import { authenticate, authorize } from '../middleware/auth';
+import { enforceTenantAccess, requireActiveRestaurant } from '../middleware/tenant';
 import { createReviewSchema, paginationSchema } from '../validators/schemas';
 import { prisma } from '../lib/prisma';
 import { sendSuccess, sendPaginated } from '../utils/response';
@@ -25,7 +26,7 @@ router.get('/reviews', asyncHandler(async (req, res) => {
   sendSuccess(res, reviews);
 }));
 
-router.use(authenticate, authorize(UserRole.OWNER, UserRole.MANAGER));
+router.use(authenticate, enforceTenantAccess, requireActiveRestaurant, authorize(UserRole.RESTAURANT_OWNER, UserRole.MANAGER));
 
 router.get('/', validate(paginationSchema), asyncHandler(async (req, res) => {
   const { page, limit, search } = req.query as { page: number; limit: number; search?: string };

@@ -73,7 +73,7 @@ async function main() {
       email: 'owner@leriad-casa.ma',
       password: ownerPassword,
       phone: '+212 6 12 34 56 78',
-      role: 'OWNER',
+      role: 'RESTAURANT_OWNER',
       restaurantId: restaurant.id,
     },
   });
@@ -318,11 +318,29 @@ async function main() {
     });
   }
 
+  // Platform settings
+  await prisma.platformSettings.upsert({
+    where: { id: 'platform' },
+    update: {},
+    create: {
+      id: 'platform',
+      settings: {
+        platformName: 'MenuFlow',
+        supportEmail: 'support@menuflow.ma',
+        defaultCurrency: 'MAD',
+        autoBackupEnabled: true,
+        autoBackupHour: 2,
+        maintenanceMode: false,
+      },
+      updatedBy: superAdmin.id,
+    },
+  });
+
   console.log('✅ Seed completed!');
   console.log('');
   console.log('📋 Comptes de test:');
-  console.log('  Super Admin: admin@menuflow.ma / Admin123!');
-  console.log('  Owner:       owner@leriad-casa.ma / Owner123!');
+  console.log('  Super Admin: admin@menuflow.ma / Admin123!  → /admin');
+  console.log('  Owner:       owner@leriad-casa.ma / Owner123! → /dashboard');
   console.log('  Manager:     manager@leriad-casa.ma / Owner123!');
   console.log('');
   console.log('🏪 Restaurant: Le Riad Casablanca');

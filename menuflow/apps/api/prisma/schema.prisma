@@ -9,9 +9,32 @@ datasource db {
 
 enum UserRole {
   SUPER_ADMIN
-  OWNER
+  RESTAURANT_OWNER
   MANAGER
   EMPLOYEE
+}
+
+enum RestaurantStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum BackupStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum BackupType {
+  AUTOMATIC
+  MANUAL
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  ERROR
+  SUCCESS
 }
 
 enum OrderStatus {
@@ -89,12 +112,15 @@ model User {
   twoFactorSecret String?
   refreshTokens RefreshToken[]
   auditLogs     AuditLog[]
+  loginHistory  LoginHistory[]
   supportTickets SupportTicket[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
 
   @@index([restaurantId])
   @@index([email])
+  @@index([role])
 }
 
 model RefreshToken {
@@ -125,8 +151,12 @@ model Restaurant {
   language         String           @default("fr")
   qrCodeUrl        String?
   subscriptionPlan SubscriptionPlan @default(FREE)
+  status           RestaurantStatus @default(ACTIVE)
   settings         Json?
   isActive         Boolean          @default(true)
+  suspendedAt      DateTime?
+  suspendedReason  String?
+  onboardedBy      String?
   users            User[]
   categories       Category[]
   products         Product[]
@@ -143,6 +173,8 @@ model Restaurant {
 
   @@index([slug])
   @@index([city])
+  @@index([status])
+  @@index([subscriptionPlan])
 }
 
 model Category {
@@ -367,17 +399,70 @@ model Favorite {
 }
 
 model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id])
+  restaurantId String?
+  action       String
+  entity       String
+  entityId     String?
+  details      Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([restaurantId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model LoginHistory {
   id        String   @id @default(cuid())
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
-  action    String
-  entity    String
-  entityId  String?
-  details   Json?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   ipAddress String?
+  userAgent String?
+  success   Boolean  @default(true)
   createdAt DateTime @default(now())
 
   @@index([userId])
+  @@index([createdAt])
+}
+
+model PlatformSettings {
+  id        String   @id @default("platform")
+  settings  Json
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}
+
+model Backup {
+  id          String       @id @default(cuid())
+  type        BackupType
+  status      BackupStatus @default(PENDING)
+  filePath    String?
+  fileSize    Int?
+  createdBy   String?
+  completedAt DateTime?
+  error       String?
+  metadata    Json?
+  createdAt   DateTime     @default(now())
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model AdminNotification {
+  id        String           @id @default(cuid())
+  type      NotificationType @default(INFO)
+  title     String
+  message   String
+  read      Boolean          @default(false)
+  metadata  Json?
+  createdAt DateTime         @default(now())
+
+  @@index([read])
   @@index([createdAt])
 }
 

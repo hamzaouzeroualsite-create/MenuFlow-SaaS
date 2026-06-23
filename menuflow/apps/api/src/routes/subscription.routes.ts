@@ -14,7 +14,7 @@ router.get('/plans', asyncHandler(async (_req, res) => {
 
 router.use(authenticate);
 
-router.get('/my', authorize(UserRole.OWNER), asyncHandler(async (req, res) => {
+router.get('/my', authorize(UserRole.RESTAURANT_OWNER), asyncHandler(async (req, res) => {
   const subscription = await prisma.subscription.findFirst({
     where: { restaurantId: req.user!.restaurantId! },
     orderBy: { createdAt: 'desc' },
@@ -22,7 +22,7 @@ router.get('/my', authorize(UserRole.OWNER), asyncHandler(async (req, res) => {
   sendSuccess(res, subscription);
 }));
 
-router.post('/checkout', authorize(UserRole.OWNER), asyncHandler(async (req, res) => {
+router.post('/checkout', authorize(UserRole.RESTAURANT_OWNER), asyncHandler(async (req, res) => {
   const { plan } = req.body;
   const session = await createCheckoutSession(req.user!.restaurantId!, plan as SubscriptionPlan);
   sendSuccess(res, session);

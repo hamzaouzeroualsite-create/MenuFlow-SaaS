@@ -85,10 +85,7 @@ export default function LoginPage() {
             </Button>
           </form>
           <p className="text-center text-sm text-gray-500 mt-6">
-            Pas encore de compte ?{' '}
-            <Link href="/register" className="text-emerald-600 hover:underline font-medium">
-              Créer un compte
-            </Link>
+            Accès réservé aux restaurants partenaires MenuFlow
           </p>
         </CardContent>
       </Card>

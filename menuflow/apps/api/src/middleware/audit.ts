@@ -1,7 +1,6 @@
 import { AuthRequest } from './auth';
 import { Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
-import { AppError } from '../utils/response';
 
 export async function auditLog(
   req: AuthRequest,
@@ -14,11 +13,13 @@ export async function auditLog(
     await prisma.auditLog.create({
       data: {
         userId: req.user?.userId,
+        restaurantId: req.params.restaurantId || req.user?.restaurantId,
         action,
         entity,
         entityId,
         details: details || undefined,
         ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
       },
     });
   } catch {
@@ -41,6 +42,6 @@ export function auditMiddleware(action: string, entity: string) {
 
 export function getRestaurantId(req: AuthRequest): string {
   const restaurantId = req.params.restaurantId || req.user?.restaurantId;
-  if (!restaurantId) throw new AppError('Restaurant ID requis', 400);
+  if (!restaurantId) throw new Error('Restaurant ID requis');
   return restaurantId;
 }

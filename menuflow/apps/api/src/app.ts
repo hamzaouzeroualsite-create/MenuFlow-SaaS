@@ -9,6 +9,7 @@ import { swaggerSpec } from './config/swagger';
 import { errorHandler } from './middleware/errorHandler';
 
 import authRoutes from './routes/auth.routes';
+import adminRoutes from './routes/admin.routes';
 import restaurantRoutes from './routes/restaurant.routes';
 import categoryRoutes from './routes/category.routes';
 import productRoutes from './routes/product.routes';
@@ -48,6 +49,7 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 }));
 
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/restaurants', restaurantRoutes);
 app.use('/api/restaurants/:restaurantId/categories', categoryRoutes);
 app.use('/api/restaurants/:restaurantId/products', productRoutes);

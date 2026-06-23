@@ -1,93 +1,50 @@
 import bcrypt from 'bcryptjs';
-import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '../lib/prisma';
 import { signAccessToken, signRefreshToken } from '../lib/jwt';
 import { AppError } from '../utils/response';
 import { UserRole } from '@menuflow/shared';
 
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
-}
-
-export async function registerUser(data: {
-  name: string;
-  email: string;
-  password: string;
-  phone?: string;
-  restaurantName: string;
-  city?: string;
-}) {
-  const existing = await prisma.user.findUnique({ where: { email: data.email } });
-  if (existing) throw new AppError('Cet email est déjà utilisé', 409);
-
-  const hashedPassword = await bcrypt.hash(data.password, 12);
-  let slug = slugify(data.restaurantName);
-  const slugExists = await prisma.restaurant.findUnique({ where: { slug } });
-  if (slugExists) slug = `${slug}-${Date.now()}`;
-
-  const result = await prisma.$transaction(async (tx) => {
-    const restaurant = await tx.restaurant.create({
-      data: {
-        name: data.restaurantName,
-        slug,
-        city: data.city,
-        email: data.email,
-        phone: data.phone,
-        settings: {
-          theme: { primaryColor: '#10B981', secondaryColor: '#FFFFFF', accentColor: '#1F2937' },
-          languages: ['fr', 'ar', 'en'],
-          defaultLanguage: 'fr',
-          taxes: [{ name: 'TVA', rate: 10 }],
-          deliveryFee: 0,
-          notifications: { email: true, sms: false, push: true, sound: true },
-        },
-      },
-    });
-
-    const user = await tx.user.create({
-      data: {
-        name: data.name,
-        email: data.email,
-        password: hashedPassword,
-        phone: data.phone,
-        role: 'OWNER',
-        restaurantId: restaurant.id,
-      },
-      select: { id: true, name: true, email: true, role: true, restaurantId: true },
-    });
-
-    await tx.subscription.create({
-      data: {
-        restaurantId: restaurant.id,
-        plan: 'FREE',
-        status: 'TRIAL',
-        startDate: new Date(),
-        endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-      },
-    });
-
-    return { user, restaurant };
-  });
-
-  const tokens = await generateTokens(result.user);
-  return { ...tokens, user: result.user, restaurant: result.restaurant };
-}
-
-export async function loginUser(email: string, password: string) {
+export async function loginUser(email: string, password: string, ipAddress?: string, userAgent?: string) {
   const user = await prisma.user.findUnique({
     where: { email },
-    include: { restaurant: { select: { id: true, name: true, slug: true, logo: true } } },
+    include: {
+      restaurant: {
+        select: { id: true, name: true, slug: true, logo: true, subscriptionPlan: true, status: true },
+      },
+    },
   });
 
-  if (!user || !user.isActive) throw new AppError('Identifiants invalides', 401);
+  const logLogin = async (userId: string, success: boolean) => {
+    try {
+      await prisma.loginHistory.create({
+        data: { userId, ipAddress, userAgent, success },
+      });
+      if (success) {
+        await prisma.user.update({ where: { id: userId }, data: { lastLoginAt: new Date() } });
+      }
+    } catch { /* non-blocking */ }
+  };
+
+  if (!user || !user.isActive) {
+    if (user) await logLogin(user.id, false);
+    throw new AppError('Identifiants invalides', 401);
+  }
 
   const valid = await bcrypt.compare(password, user.password);
-  if (!valid) throw new AppError('Identifiants invalides', 401);
+  if (!valid) {
+    await logLogin(user.id, false);
+    throw new AppError('Identifiants invalides', 401);
+  }
+
+  if (
+    user.role !== UserRole.SUPER_ADMIN &&
+    user.restaurant &&
+    (user.restaurant.status === 'SUSPENDED')
+  ) {
+    throw new AppError('Ce restaurant est suspendu. Contactez MenuFlow.', 403);
+  }
+
+  await logLogin(user.id, true);
 
   const tokens = await generateTokens(user);
   const { password: _, ...safeUser } = user;
@@ -145,4 +102,11 @@ export function generateOrderNumber(): string {
   return `MF-${prefix}-${random}`;
 }
 
-export { slugify };
+export function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler, validate } from '../middleware/validate';
 import { authenticate, authorize } from '../middleware/auth';
+import { enforceTenantAccess, requireActiveRestaurant } from '../middleware/tenant';
 import { createReservationSchema, paginationSchema } from '../validators/schemas';
 import { prisma } from '../lib/prisma';
 import { sendSuccess, sendPaginated, AppError } from '../utils/response';
@@ -26,7 +27,7 @@ router.post('/', validate(createReservationSchema), asyncHandler(async (req, res
   sendSuccess(res, reservation, 'Réservation créée', 201);
 }));
 
-router.use(authenticate, authorize(UserRole.OWNER, UserRole.MANAGER, UserRole.EMPLOYEE));
+router.use(authenticate, enforceTenantAccess, requireActiveRestaurant, authorize(UserRole.RESTAURANT_OWNER, UserRole.MANAGER, UserRole.EMPLOYEE));
 
 router.get('/', validate(paginationSchema), asyncHandler(async (req, res) => {
   const { page, limit } = req.query as { page: number; limit: number };
@@ -44,7 +45,7 @@ router.get('/', validate(paginationSchema), asyncHandler(async (req, res) => {
       take: limit,
     }),
     prisma.reservation.count({ where }),
-  ]);
+  });
   sendPaginated(res, reservations, total, page, limit);
 }));
 

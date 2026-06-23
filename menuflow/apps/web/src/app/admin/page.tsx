@@ -1,82 +1,123 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Building2, Users, ShoppingBag, DollarSign } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { motion } from 'framer-motion';
+import {
+  Building2, Users, ShoppingBag, DollarSign, TrendingUp, PauseCircle, CheckCircle,
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { api } from '@/lib/api';
-import { useAuthStore } from '@/lib/store';
 import { formatCurrency } from '@/lib/utils';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar,
+} from 'recharts';
 
-interface SuperAdminStats {
+interface PlatformStats {
   totalRestaurants: number;
+  activeRestaurants: number;
+  suspendedRestaurants: number;
   totalUsers: number;
   totalOrders: number;
   totalRevenue: number;
-  subscriptionsByPlan: { plan: string; count: number }[];
+  monthlyRevenue: number;
+  newRestaurantsThisMonth: number;
+  growthChart: { month: string; restaurants: number }[];
+  revenueChart: { month: string; revenue: number }[];
 }
 
-export default function AdminPage() {
-  const router = useRouter();
-  const user = useAuthStore((s) => s.user);
-  const [stats, setStats] = useState<SuperAdminStats | null>(null);
+export default function AdminDashboardPage() {
+  const [stats, setStats] = useState<PlatformStats | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user?.role !== 'SUPER_ADMIN') {
-      router.push('/dashboard');
-      return;
-    }
-    api.get<SuperAdminStats>('/api/restaurants/placeholder/analytics/super-admin')
+    api.get<PlatformStats>('/api/admin/dashboard')
       .then(setStats)
-      .catch(console.error);
-  }, [user, router]);
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   const statCards = stats ? [
-    { title: 'Restaurants', value: stats.totalRestaurants, icon: Building2, color: 'text-blue-600 bg-blue-50' },
-    { title: 'Utilisateurs', value: stats.totalUsers, icon: Users, color: 'text-emerald-600 bg-emerald-50' },
-    { title: 'Commandes', value: stats.totalOrders, icon: ShoppingBag, color: 'text-purple-600 bg-purple-50' },
-    { title: 'Revenus', value: formatCurrency(stats.totalRevenue), icon: DollarSign, color: 'text-orange-600 bg-orange-50' },
+    { title: 'Restaurants', value: stats.totalRestaurants, sub: `${stats.activeRestaurants} actifs`, icon: Building2, color: 'text-emerald-400' },
+    { title: 'Suspendus', value: stats.suspendedRestaurants, sub: 'Comptes bloqués', icon: PauseCircle, color: 'text-red-400' },
+    { title: 'Utilisateurs', value: stats.totalUsers, sub: 'Hors super admin', icon: Users, color: 'text-blue-400' },
+    { title: 'Commandes', value: stats.totalOrders, sub: 'Plateforme totale', icon: ShoppingBag, color: 'text-purple-400' },
+    { title: 'Revenus totaux', value: formatCurrency(stats.totalRevenue), sub: formatCurrency(stats.monthlyRevenue) + ' ce mois', icon: DollarSign, color: 'text-yellow-400' },
+    { title: 'Nouveaux', value: stats.newRestaurantsThisMonth, sub: 'Ce mois-ci', icon: TrendingUp, color: 'text-emerald-400' },
   ] : [];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Super Admin Panel</h1>
-          <p className="text-gray-500">Gestion de la plateforme MenuFlow</p>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-white">Dashboard Plateforme</h1>
+        <p className="text-gray-400">Vue d&apos;ensemble MenuFlow — gestion centralisée</p>
+      </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {statCards.map((stat) => (
-            <Card key={stat.title}>
-              <CardContent className="p-6 flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">{stat.title}</p>
-                  <p className="text-2xl font-bold mt-1">{stat.value}</p>
-                </div>
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${stat.color}`}>
-                  <stat.icon className="w-6 h-6" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {statCards.map((stat, i) => (
+          <motion.div key={stat.title} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+            <Card className="bg-gray-900 border-gray-800">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-400">{stat.title}</p>
+                    <p className="text-2xl font-bold text-white mt-1">{stat.value}</p>
+                    <p className="text-xs text-gray-500 mt-1">{stat.sub}</p>
+                  </div>
+                  <stat.icon className={`w-8 h-8 ${stat.color}`} />
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
+          </motion.div>
+        ))}
+      </div>
 
-        {stats?.subscriptionsByPlan && (
-          <Card>
-            <CardContent className="p-6">
-              <h2 className="font-semibold mb-4">Abonnements par plan</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {stats.subscriptionsByPlan.map((s) => (
-                  <div key={s.plan} className="text-center p-4 bg-gray-50 rounded-lg">
-                    <p className="text-2xl font-bold text-emerald-600">{s.count}</p>
-                    <p className="text-sm text-gray-500">{s.plan}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+      <div className="grid lg:grid-cols-2 gap-6">
+        <Card className="bg-gray-900 border-gray-800">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-emerald-400" /> Croissance restaurants
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={stats?.growthChart || []}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis dataKey="month" tick={{ fill: '#9CA3AF', fontSize: 12 }} />
+                <YAxis tick={{ fill: '#9CA3AF', fontSize: 12 }} />
+                <Tooltip contentStyle={{ background: '#1F2937', border: 'none' }} />
+                <Bar dataKey="restaurants" fill="#10B981" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-900 border-gray-800">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-emerald-400" /> Revenus plateforme
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <AreaChart data={stats?.revenueChart || []}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis dataKey="month" tick={{ fill: '#9CA3AF', fontSize: 12 }} />
+                <YAxis tick={{ fill: '#9CA3AF', fontSize: 12 }} />
+                <Tooltip contentStyle={{ background: '#1F2937', border: 'none' }} formatter={(v: number) => formatCurrency(v)} />
+                <Area type="monotone" dataKey="revenue" stroke="#10B981" fill="#10B981" fillOpacity={0.15} strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

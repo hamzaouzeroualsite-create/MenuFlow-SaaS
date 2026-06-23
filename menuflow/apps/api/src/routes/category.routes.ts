@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler, validate } from '../middleware/validate';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth';
+import { enforceTenantAccess, requireActiveRestaurant } from '../middleware/tenant';
 import { createCategorySchema } from '../validators/schemas';
 import { prisma } from '../lib/prisma';
 import { sendSuccess, AppError } from '../utils/response';
@@ -20,7 +21,7 @@ router.get('/', asyncHandler(async (req, res) => {
   sendSuccess(res, categories);
 }));
 
-router.use(authenticate, authorize(UserRole.OWNER, UserRole.MANAGER));
+router.use(authenticate, enforceTenantAccess, requireActiveRestaurant, authorize(UserRole.RESTAURANT_OWNER, UserRole.MANAGER));
 
 router.post('/', validate(createCategorySchema), asyncHandler(async (req: AuthRequest, res) => {
   const category = await prisma.category.create({

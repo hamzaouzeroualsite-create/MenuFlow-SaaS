@@ -14,17 +14,17 @@ import { useAuthStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 
 const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/dashboard/menu', icon: UtensilsCrossed, label: 'Menu' },
-  { href: '/dashboard/orders', icon: ShoppingBag, label: 'Commandes' },
-  { href: '/dashboard/kitchen', icon: ChefHat, label: 'Cuisine' },
-  { href: '/dashboard/reservations', icon: Calendar, label: 'Réservations' },
-  { href: '/dashboard/customers', icon: Users, label: 'Clients' },
-  { href: '/dashboard/qr', icon: QrCode, label: 'QR Codes' },
-  { href: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
-  { href: '/dashboard/employees', icon: UserCog, label: 'Équipe' },
-  { href: '/dashboard/subscription', icon: CreditCard, label: 'Abonnement' },
-  { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
+  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['RESTAURANT_OWNER', 'MANAGER', 'EMPLOYEE'] },
+  { href: '/dashboard/menu', icon: UtensilsCrossed, label: 'Menu', roles: ['RESTAURANT_OWNER', 'MANAGER'] },
+  { href: '/dashboard/orders', icon: ShoppingBag, label: 'Commandes', roles: ['RESTAURANT_OWNER', 'MANAGER', 'EMPLOYEE'] },
+  { href: '/dashboard/kitchen', icon: ChefHat, label: 'Cuisine', roles: ['RESTAURANT_OWNER', 'MANAGER', 'EMPLOYEE'] },
+  { href: '/dashboard/reservations', icon: Calendar, label: 'Réservations', roles: ['RESTAURANT_OWNER', 'MANAGER', 'EMPLOYEE'] },
+  { href: '/dashboard/customers', icon: Users, label: 'Clients', roles: ['RESTAURANT_OWNER', 'MANAGER'] },
+  { href: '/dashboard/qr', icon: QrCode, label: 'QR Codes', roles: ['RESTAURANT_OWNER', 'MANAGER'] },
+  { href: '/dashboard/analytics', icon: BarChart3, label: 'Analytics', roles: ['RESTAURANT_OWNER', 'MANAGER'] },
+  { href: '/dashboard/employees', icon: UserCog, label: 'Équipe', roles: ['RESTAURANT_OWNER'] },
+  { href: '/dashboard/subscription', icon: CreditCard, label: 'Abonnement', roles: ['RESTAURANT_OWNER'] },
+  { href: '/dashboard/settings', icon: Settings, label: 'Paramètres', roles: ['RESTAURANT_OWNER', 'MANAGER'] },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -36,8 +36,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push('/login');
+      return;
     }
-  }, [isAuthenticated, router]);
+    if (user?.role === 'SUPER_ADMIN') {
+      router.push('/admin');
+    }
+  }, [isAuthenticated, user, router]);
+
+  const visibleNav = navItems.filter((item) =>
+    !user?.role || item.roles.includes(user.role)
+  );
 
   const handleLogout = () => {
     logout();
@@ -80,7 +88,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
 
         <nav className="p-3 space-y-1 flex-1 overflow-y-auto">
-          {navItems.map((item) => (
+          {visibleNav.map((item) => (
             <Link
               key={item.href}
               href={item.href}

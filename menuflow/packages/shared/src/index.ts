@@ -1,8 +1,24 @@
 export enum UserRole {
   SUPER_ADMIN = 'SUPER_ADMIN',
-  OWNER = 'OWNER',
+  RESTAURANT_OWNER = 'RESTAURANT_OWNER',
   MANAGER = 'MANAGER',
   EMPLOYEE = 'EMPLOYEE',
+}
+
+export enum RestaurantStatus {
+  ACTIVE = 'ACTIVE',
+  SUSPENDED = 'SUSPENDED',
+}
+
+export enum BackupStatus {
+  PENDING = 'PENDING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+}
+
+export enum BackupType {
+  AUTOMATIC = 'AUTOMATIC',
+  MANUAL = 'MANUAL',
 }
 
 export enum OrderStatus {
@@ -84,6 +100,7 @@ export interface JwtPayload {
   email: string;
   role: UserRole;
   restaurantId?: string;
+  impersonatedBy?: string;
 }
 
 export interface ApiResponse<T = unknown> {
