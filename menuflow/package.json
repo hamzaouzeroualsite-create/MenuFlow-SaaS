@@ -1,0 +1,29 @@
+{
+  "name": "menuflow",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MenuFlow - Plateforme SaaS de menus digitaux pour restaurants au Maroc",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "npm run dev --workspace=@menuflow/api",
+    "dev:web": "npm run dev --workspace=@menuflow/web",
+    "build": "npm run build --workspaces --if-present",
+    "db:generate": "npm run db:generate --workspace=@menuflow/api",
+    "db:migrate": "npm run db:migrate --workspace=@menuflow/api",
+    "db:seed": "npm run db:seed --workspace=@menuflow/api",
+    "db:studio": "npm run db:studio --workspace=@menuflow/api",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
