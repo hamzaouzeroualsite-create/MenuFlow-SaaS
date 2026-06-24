@@ -61,4 +61,11 @@
   .text-gradient {
     @apply bg-gradient-to-r from-emerald-500 to-emerald-700 bg-clip-text text-transparent;
   }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }

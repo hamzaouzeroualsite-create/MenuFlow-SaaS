@@ -1,73 +1,65 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Key, UserX, UserCheck } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { api } from '@/lib/api';
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  isActive: boolean;
-  restaurant?: { name: string; status: string };
-  lastLoginAt?: string;
-}
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { getUsers } from '@/lib/services/data';
+import type { User } from '@/types';
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
-  const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    const params = search ? `?search=${search}` : '';
-    api.get<User[]>(`/api/admin/users${params}`).then(setUsers).catch(console.error);
-  }, [search]);
+  useEffect(() => { getUsers().then(setUsers); }, []);
 
-  const resetPassword = async (id: string, email: string) => {
-    const pwd = prompt(`Nouveau mot de passe pour ${email}:`);
-    if (!pwd || pwd.length < 8) return;
-    await api.post(`/api/admin/users/${id}/reset-password`, { newPassword: pwd });
-    alert('Mot de passe réinitialisé');
-  };
-
-  const toggleActive = async (id: string, isActive: boolean) => {
-    await api.patch(`/api/admin/users/${id}/toggle-active`, { isActive: !isActive });
-    setUsers((prev) => prev.map((u) => u.id === id ? { ...u, isActive: !isActive } : u));
+  const roleColor = (role: string) => {
+    if (role === 'SUPER_ADMIN') return 'default';
+    if (role === 'RESTAURANT_OWNER') return 'preparing';
+    return 'secondary';
   };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Gestion Utilisateurs</h1>
-        <p className="text-gray-400">Propriétaires, managers et employés</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Utilisateurs</h1>
+          <p className="text-gray-400 mt-1">Gérer les comptes propriétaires et employés</p>
+        </div>
+        <Button className="bg-emerald-600 hover:bg-emerald-700"><Plus className="w-4 h-4 mr-2" /> Créer un compte</Button>
       </div>
 
-      <Input placeholder="Rechercher..." className="max-w-md bg-gray-900 border-gray-700 text-white" value={search} onChange={(e) => setSearch(e.target.value)} />
-
-      <div className="space-y-3">
-        {users.map((user) => (
-          <Card key={user.id} className="bg-gray-900 border-gray-800">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium text-white">{user.name}</p>
-                <p className="text-sm text-gray-500">{user.email} &middot; {user.role} &middot; {user.restaurant?.name || '—'}</p>
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="gap-1 border-gray-700" onClick={() => resetPassword(user.id, user.email)}>
-                  <Key className="w-3 h-3" /> Reset MDP
-                </Button>
-                <Button size="sm" variant="outline" className={`gap-1 ${user.isActive ? 'border-red-800 text-red-400' : 'border-emerald-800 text-emerald-400'}`} onClick={() => toggleActive(user.id, user.isActive)}>
-                  {user.isActive ? <UserX className="w-3 h-3" /> : <UserCheck className="w-3 h-3" />}
-                  {user.isActive ? 'Désactiver' : 'Activer'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <Card className="bg-gray-900 border-gray-800">
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-gray-800 hover:bg-transparent">
+                <TableHead className="text-gray-400">Nom</TableHead>
+                <TableHead className="text-gray-400">Email</TableHead>
+                <TableHead className="text-gray-400">Rôle</TableHead>
+                <TableHead className="text-gray-400">Restaurant</TableHead>
+                <TableHead className="text-gray-400">Statut</TableHead>
+                <TableHead className="text-gray-400">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.map((u) => (
+                <TableRow key={u.id} className="border-gray-800 hover:bg-gray-800/50">
+                  <TableCell className="font-medium text-white">{u.name}</TableCell>
+                  <TableCell className="text-gray-300">{u.email}</TableCell>
+                  <TableCell><Badge variant={roleColor(u.role) as 'default'}>{u.role}</Badge></TableCell>
+                  <TableCell className="text-gray-400">{u.restaurantId || '—'}</TableCell>
+                  <TableCell><Badge variant={u.isActive ? 'default' : 'cancelled'}>{u.isActive ? 'Actif' : 'Inactif'}</Badge></TableCell>
+                  <TableCell>
+                    <Button size="sm" variant="outline" className="border-gray-700 text-gray-400 text-xs">Réinitialiser MDP</Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }

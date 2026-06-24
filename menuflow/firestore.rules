@@ -1,0 +1,123 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && getUserData().role == 'SUPER_ADMIN';
+    }
+
+    function belongsToRestaurant(restaurantId) {
+      return isAuthenticated() && getUserData().restaurantId == restaurantId;
+    }
+
+    function canManageRestaurant(restaurantId) {
+      return isSuperAdmin() || (
+        belongsToRestaurant(restaurantId) &&
+        getUserData().role in ['RESTAURANT_OWNER', 'MANAGER']
+      );
+    }
+
+    function canAccessRestaurant(restaurantId) {
+      return isSuperAdmin() || belongsToRestaurant(restaurantId);
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
+      allow create: if isSuperAdmin();
+      allow update: if isSuperAdmin() || request.auth.uid == userId;
+      allow delete: if isSuperAdmin();
+    }
+
+    // Restaurants collection
+    match /restaurants/{restaurantId} {
+      allow read: if true;
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+    // Multi-tenant collections - all require restaurantId
+    match /categories/{docId} {
+      allow read: if true;
+      allow create, update, delete: if canManageRestaurant(resource.data.restaurantId)
+        || canManageRestaurant(request.resource.data.restaurantId);
+    }
+
+    match /products/{docId} {
+      allow read: if true;
+      allow create, update, delete: if canManageRestaurant(resource.data.restaurantId)
+        || canManageRestaurant(request.resource.data.restaurantId);
+    }
+
+    match /orders/{docId} {
+      allow read: if canAccessRestaurant(resource.data.restaurantId);
+      allow create: if true;
+      allow update: if canAccessRestaurant(resource.data.restaurantId);
+      allow delete: if isSuperAdmin();
+    }
+
+    match /reservations/{docId} {
+      allow read: if canAccessRestaurant(resource.data.restaurantId);
+      allow create: if true;
+      allow update: if canAccessRestaurant(resource.data.restaurantId);
+      allow delete: if isSuperAdmin();
+    }
+
+    match /customers/{docId} {
+      allow read: if canAccessRestaurant(resource.data.restaurantId);
+      allow create, update: if canAccessRestaurant(request.resource.data.restaurantId)
+        || canAccessRestaurant(resource.data.restaurantId);
+      allow delete: if isSuperAdmin();
+    }
+
+    match /reviews/{docId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if isSuperAdmin();
+    }
+
+    match /subscriptions/{docId} {
+      allow read: if canAccessRestaurant(resource.data.restaurantId);
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+    match /analytics/{docId} {
+      allow read: if canAccessRestaurant(resource.data.restaurantId) || isSuperAdmin();
+      allow create: if true;
+      allow update, delete: if isSuperAdmin();
+    }
+
+    match /notifications/{docId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        canAccessRestaurant(resource.data.restaurantId)
+      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isSuperAdmin()
+      );
+      allow delete: if isSuperAdmin();
+    }
+
+    match /auditLogs/{docId} {
+      allow read: if isSuperAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+
+    match /qrCodes/{docId} {
+      allow read: if true;
+      allow create, update, delete: if canManageRestaurant(resource.data.restaurantId)
+        || canManageRestaurant(request.resource.data.restaurantId);
+    }
+  }
+}

@@ -1,70 +1,66 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Check, CreditCard } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { api } from '@/lib/api';
-import { useAuthStore } from '@/lib/store';
-
-interface Plan {
-  id: string;
-  name: string;
-  price: number;
-  features: string[];
-}
+import { RestaurantHeader } from '@/components/layout/restaurant-sidebar';
+import { useAuth } from '@/contexts/auth-context';
+import { getSubscription } from '@/lib/services/data';
+import { formatCurrency } from '@/lib/utils';
+import type { Subscription } from '@/types';
 
 export default function SubscriptionPage() {
-  const user = useAuthStore((s) => s.user);
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const currentPlan = user?.restaurant?.subscriptionPlan || 'FREE';
+  const { user } = useAuth();
+  const [sub, setSub] = useState<Subscription | null>(null);
 
   useEffect(() => {
-    api.get<Plan[]>('/api/subscriptions/plans').then(setPlans).catch(console.error);
-  }, []);
+    if (!user?.restaurantId) return;
+    getSubscription(user.restaurantId).then(setSub);
+  }, [user?.restaurantId]);
 
-  const handleUpgrade = async (planId: string) => {
-    try {
-      const result = await api.post<{ url: string }>('/api/subscriptions/checkout', { plan: planId });
-      if (result.url) window.location.href = result.url;
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const plans = [
+    { name: 'FREE', price: 0, features: ['Menu digital', '50 produits max', 'QR Code'] },
+    { name: 'BASIC', price: 199, features: ['Tout FREE', 'Commandes en ligne', 'Analytics basiques'] },
+    { name: 'PREMIUM', price: 499, features: ['Tout BASIC', 'Réservations', 'Analytics avancés', 'Support prioritaire'] },
+    { name: 'ENTERPRISE', price: 999, features: ['Tout PREMIUM', 'Multi-établissements', 'API access', 'Account manager'] },
+  ];
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Abonnement</h1>
-        <p className="text-gray-500">Plan actuel : <span className="font-medium text-emerald-600">{currentPlan}</span></p>
-      </div>
+      <RestaurantHeader title="Abonnement" />
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {sub && (
+        <Card className="border border-emerald-200 bg-emerald-50 shadow-sm rounded-xl">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm text-emerald-700">Plan actuel</p>
+              <p className="text-2xl font-bold text-emerald-900">{sub.plan}</p>
+              <p className="text-sm text-emerald-600 mt-1">
+                Expire le {new Date(sub.endDate).toLocaleDateString('fr-FR')}
+              </p>
+            </div>
+            <Badge className="text-base px-4 py-1">{sub.status}</Badge>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {plans.map((plan) => (
-          <Card key={plan.id} className={plan.id === currentPlan ? 'border-emerald-500 border-2' : ''}>
-            <CardHeader>
-              <CardTitle className="text-lg">{plan.name}</CardTitle>
-              <div>
-                <span className="text-3xl font-bold">{plan.price}</span>
-                <span className="text-gray-500"> MAD/mois</span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2 mb-4">
+          <Card key={plan.name} className={`border shadow-sm rounded-xl ${sub?.plan === plan.name ? 'border-emerald-500 ring-2 ring-emerald-200' : 'border-gray-100'}`}>
+            <CardContent className="p-6">
+              <h3 className="font-bold text-lg">{plan.name}</h3>
+              <p className="text-3xl font-bold mt-2">{plan.price === 0 ? 'Gratuit' : formatCurrency(plan.price)}<span className="text-sm font-normal text-gray-500">/mois</span></p>
+              <ul className="mt-4 space-y-2">
                 {plan.features.map((f) => (
-                  <li key={f} className="flex items-center gap-2 text-sm">
-                    <Check className="w-4 h-4 text-emerald-600" /> {f}
+                  <li key={f} className="text-sm text-gray-600 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />{f}
                   </li>
                 ))}
               </ul>
-              {plan.id === currentPlan ? (
-                <Button variant="outline" className="w-full" disabled>Plan actuel</Button>
-              ) : (
-                <Button className="w-full gap-1" onClick={() => handleUpgrade(plan.id)}>
-                  <CreditCard className="w-4 h-4" />
-                  {plan.price === 0 ? 'Rétrograder' : 'Choisir'}
-                </Button>
-              )}
+              <Button className="w-full mt-6 bg-emerald-600 hover:bg-emerald-700" variant={sub?.plan === plan.name ? 'outline' : 'default'}>
+                {sub?.plan === plan.name ? 'Plan actuel' : 'Mettre à niveau'}
+              </Button>
             </CardContent>
           </Card>
         ))}

@@ -2,65 +2,48 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { api } from '@/lib/api';
-import { formatDate } from '@/lib/utils';
-
-interface Subscription {
-  id: string;
-  plan: string;
-  status: string;
-  startDate: string;
-  endDate?: string;
-  restaurant: { id: string; name: string; city?: string; status: string };
-}
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { getAllSubscriptions } from '@/lib/services/data';
+import { formatCurrency } from '@/lib/utils';
+import type { Subscription } from '@/types';
 
 export default function AdminSubscriptionsPage() {
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [subs, setSubs] = useState<Subscription[]>([]);
 
-  useEffect(() => {
-    api.get<Subscription[]>('/api/admin/subscriptions').then(setSubscriptions).catch(console.error);
-  }, []);
-
-  const updateStatus = async (id: string, status: string) => {
-    await api.put(`/api/admin/subscriptions/${id}`, { status });
-    setSubscriptions((prev) => prev.map((s) => s.id === id ? { ...s, status } : s));
-  };
-
-  const updatePlan = async (id: string, plan: string) => {
-    await api.put(`/api/admin/subscriptions/${id}`, { plan });
-    setSubscriptions((prev) => prev.map((s) => s.id === id ? { ...s, plan } : s));
-  };
+  useEffect(() => { getAllSubscriptions().then(setSubs); }, []);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Abonnements</h1>
-        <p className="text-gray-400">Gestion des plans et expirations</p>
-      </div>
-
-      <div className="space-y-3">
-        {subscriptions.map((sub) => (
-          <Card key={sub.id} className="bg-gray-900 border-gray-800">
-            <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <p className="font-medium text-white">{sub.restaurant.name}</p>
-                <p className="text-sm text-gray-500">
-                  {sub.plan} &middot; {sub.status} &middot; Expire: {sub.endDate ? formatDate(sub.endDate) : '—'}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <select className="px-2 py-1 rounded bg-gray-800 border border-gray-700 text-white text-sm" value={sub.plan} onChange={(e) => updatePlan(sub.id, e.target.value)}>
-                  {['FREE', 'STARTER', 'PREMIUM', 'ENTERPRISE'].map((p) => <option key={p} value={p}>{p}</option>)}
-                </select>
-                <select className="px-2 py-1 rounded bg-gray-800 border border-gray-700 text-white text-sm" value={sub.status} onChange={(e) => updateStatus(sub.id, e.target.value)}>
-                  {['ACTIVE', 'TRIAL', 'EXPIRED', 'CANCELLED'].map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <h1 className="text-2xl font-bold text-white">Abonnements</h1>
+      <Card className="bg-gray-900 border-gray-800">
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-gray-800 hover:bg-transparent">
+                <TableHead className="text-gray-400">Restaurant</TableHead>
+                <TableHead className="text-gray-400">Plan</TableHead>
+                <TableHead className="text-gray-400">Statut</TableHead>
+                <TableHead className="text-gray-400">Montant</TableHead>
+                <TableHead className="text-gray-400">Début</TableHead>
+                <TableHead className="text-gray-400">Fin</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {subs.map((s) => (
+                <TableRow key={s.id} className="border-gray-800 hover:bg-gray-800/50">
+                  <TableCell className="text-white">{s.restaurantId}</TableCell>
+                  <TableCell><Badge>{s.plan}</Badge></TableCell>
+                  <TableCell><Badge variant={s.status === 'ACTIVE' ? 'default' : 'cancelled'}>{s.status}</Badge></TableCell>
+                  <TableCell className="text-emerald-400">{formatCurrency(s.amount)}/mois</TableCell>
+                  <TableCell className="text-gray-400">{new Date(s.startDate).toLocaleDateString('fr-FR')}</TableCell>
+                  <TableCell className="text-gray-400">{new Date(s.endDate).toLocaleDateString('fr-FR')}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }

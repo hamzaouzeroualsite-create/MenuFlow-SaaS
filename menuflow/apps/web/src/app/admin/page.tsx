@@ -2,77 +2,49 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import {
-  Building2, Users, ShoppingBag, DollarSign, TrendingUp, PauseCircle, CheckCircle,
-} from 'lucide-react';
+import { Building2, ShoppingBag, DollarSign, CreditCard, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { api } from '@/lib/api';
+import { getPlatformStats, getVisitsChartData } from '@/lib/services/data';
 import { formatCurrency } from '@/lib/utils';
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar,
-} from 'recharts';
-
-interface PlatformStats {
-  totalRestaurants: number;
-  activeRestaurants: number;
-  suspendedRestaurants: number;
-  totalUsers: number;
-  totalOrders: number;
-  totalRevenue: number;
-  monthlyRevenue: number;
-  newRestaurantsThisMonth: number;
-  growthChart: { month: string; restaurants: number }[];
-  revenueChart: { month: string; revenue: number }[];
-}
+import type { PlatformStats } from '@/types';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<PlatformStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const chartData = getVisitsChartData();
 
   useEffect(() => {
-    api.get<PlatformStats>('/api/admin/dashboard')
-      .then(setStats)
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    getPlatformStats().then(setStats);
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
-      </div>
-    );
-  }
-
-  const statCards = stats ? [
-    { title: 'Restaurants', value: stats.totalRestaurants, sub: `${stats.activeRestaurants} actifs`, icon: Building2, color: 'text-emerald-400' },
-    { title: 'Suspendus', value: stats.suspendedRestaurants, sub: 'Comptes bloqués', icon: PauseCircle, color: 'text-red-400' },
-    { title: 'Utilisateurs', value: stats.totalUsers, sub: 'Hors super admin', icon: Users, color: 'text-blue-400' },
-    { title: 'Commandes', value: stats.totalOrders, sub: 'Plateforme totale', icon: ShoppingBag, color: 'text-purple-400' },
-    { title: 'Revenus totaux', value: formatCurrency(stats.totalRevenue), sub: formatCurrency(stats.monthlyRevenue) + ' ce mois', icon: DollarSign, color: 'text-yellow-400' },
-    { title: 'Nouveaux', value: stats.newRestaurantsThisMonth, sub: 'Ce mois-ci', icon: TrendingUp, color: 'text-emerald-400' },
+  const cards = stats ? [
+    { title: 'Restaurants', value: stats.totalRestaurants, sub: `${stats.activeRestaurants} actifs`, icon: Building2, color: 'text-blue-400 bg-blue-400/10' },
+    { title: 'Commandes totales', value: stats.totalOrders.toLocaleString('fr-FR'), sub: `+${stats.newRestaurantsThisMonth} ce mois`, icon: ShoppingBag, color: 'text-emerald-400 bg-emerald-400/10' },
+    { title: 'Revenus plateforme', value: formatCurrency(stats.totalRevenue), sub: 'Tous restaurants', icon: DollarSign, color: 'text-amber-400 bg-amber-400/10' },
+    { title: 'Abonnements actifs', value: stats.activeSubscriptions, sub: 'Premium & Basic', icon: CreditCard, color: 'text-purple-400 bg-purple-400/10' },
   ] : [];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Dashboard Plateforme</h1>
-        <p className="text-gray-400">Vue d&apos;ensemble MenuFlow — gestion centralisée</p>
+        <h1 className="text-2xl font-bold text-white">Super Admin Dashboard</h1>
+        <p className="text-gray-400 mt-1">Vue d&apos;ensemble de la plateforme MenuFlow</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {statCards.map((stat, i) => (
-          <motion.div key={stat.title} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {cards.map((card, i) => (
+          <motion.div key={card.title} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
             <Card className="bg-gray-900 border-gray-800">
-              <CardContent className="p-6">
+              <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-400">{stat.title}</p>
-                    <p className="text-2xl font-bold text-white mt-1">{stat.value}</p>
-                    <p className="text-xs text-gray-500 mt-1">{stat.sub}</p>
+                    <p className="text-sm text-gray-400">{card.title}</p>
+                    <p className="text-2xl font-bold text-white mt-1">{card.value}</p>
+                    <p className="text-xs text-gray-500 mt-1">{card.sub}</p>
                   </div>
-                  <stat.icon className={`w-8 h-8 ${stat.color}`} />
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${card.color}`}>
+                    <card.icon className="w-5 h-5" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -80,45 +52,30 @@ export default function AdminDashboardPage() {
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-emerald-400" /> Croissance restaurants
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={stats?.growthChart || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="month" tick={{ fill: '#9CA3AF', fontSize: 12 }} />
-                <YAxis tick={{ fill: '#9CA3AF', fontSize: 12 }} />
-                <Tooltip contentStyle={{ background: '#1F2937', border: 'none' }} />
-                <Bar dataKey="restaurants" fill="#10B981" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-emerald-400" /> Revenus plateforme
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <AreaChart data={stats?.revenueChart || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="month" tick={{ fill: '#9CA3AF', fontSize: 12 }} />
-                <YAxis tick={{ fill: '#9CA3AF', fontSize: 12 }} />
-                <Tooltip contentStyle={{ background: '#1F2937', border: 'none' }} formatter={(v: number) => formatCurrency(v)} />
-                <Area type="monotone" dataKey="revenue" stroke="#10B981" fill="#10B981" fillOpacity={0.15} strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="bg-gray-900 border-gray-800">
+        <CardHeader>
+          <CardTitle className="text-white text-base flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-emerald-400" /> Croissance des revenus
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+              <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#9CA3AF' }} tickFormatter={(v) => v.slice(8)} />
+              <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} />
+              <Tooltip contentStyle={{ backgroundColor: '#1F2937', border: 'none', borderRadius: 8 }} />
+              <Area type="monotone" dataKey="revenue" stroke="#10B981" fill="url(#revGrad)" strokeWidth={2} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && getUserData().role == 'SUPER_ADMIN';
+    }
+
+    function canManageRestaurant(restaurantId) {
+      return isSuperAdmin() || (
+        isAuthenticated() &&
+        getUserData().restaurantId == restaurantId &&
+        getUserData().role in ['RESTAURANT_OWNER', 'MANAGER']
+      );
+    }
+
+    match /restaurants/{restaurantId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if canManageRestaurant(restaurantId)
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    match /products/{restaurantId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if canManageRestaurant(restaurantId)
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+  }
+}

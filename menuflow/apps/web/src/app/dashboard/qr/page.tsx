@@ -1,111 +1,92 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Download, QrCode, Printer } from 'lucide-react';
+import { Download, Printer, Share2, QrCode } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { api } from '@/lib/api';
-import { useAuthStore } from '@/lib/store';
-
-interface Table {
-  id: string;
-  number: string;
-  qrCode?: string;
-  status: string;
-}
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RestaurantHeader } from '@/components/layout/restaurant-sidebar';
+import { useAuth } from '@/contexts/auth-context';
+import { getQRCodes } from '@/lib/services/data';
+import { generateQRCodeDataUrl, getMenuUrl, downloadQRPNG, downloadQRSVG, printQRCode, shareQRCode } from '@/lib/qr';
+import type { QRCode } from '@/types';
 
 export default function QRPage() {
-  const user = useAuthStore((s) => s.user);
-  const [restaurantQr, setRestaurantQr] = useState<{ url: string; qrCode: string } | null>(null);
-  const [tables, setTables] = useState<Table[]>([]);
+  const { restaurant } = useAuth();
+  const [qrCodes, setQrCodes] = useState<QRCode[]>([]);
+  const [qrImages, setQrImages] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (!user?.restaurantId) return;
+    if (!restaurant) return;
+    getQRCodes(restaurant.id).then(async (codes) => {
+      setQrCodes(codes);
+      const images: Record<string, string> = {};
+      for (const qr of codes) {
+        images[qr.id] = await generateQRCodeDataUrl(qr.url, 200);
+      }
+      setQrImages(images);
+    });
+  }, [restaurant]);
 
-    api.get<Table[]>(`/api/restaurants/${user.restaurantId}/tables`).then(setTables).catch(console.error);
-
-    api.post<{ url: string; qrCode: string }>(`/api/restaurants/my/qr`)
-      .then(setRestaurantQr)
-      .catch(() => {
-        if (user.restaurant?.slug) {
-          setRestaurantQr({
-            url: `${window.location.origin}/menu/${user.restaurant.slug}`,
-            qrCode: '',
-          });
-        }
-      });
-  }, [user?.restaurantId, user?.restaurant?.slug]);
-
-  const generateTableQr = async (tableId: string) => {
-    if (!user?.restaurantId) return;
-    try {
-      const result = await api.post<{ qrCode: string }>(`/api/restaurants/${user.restaurantId}/tables/${tableId}/qr`);
-      setTables((prev) => prev.map((t) => t.id === tableId ? { ...t, qrCode: result.qrCode } : t));
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const mainQR = qrCodes.find((q) => q.type === 'MAIN');
+  const tableQRs = qrCodes.filter((q) => q.type === 'TABLE');
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Centre QR Code</h1>
-        <p className="text-gray-500">Générez et téléchargez vos QR codes</p>
-      </div>
+      <RestaurantHeader title="QR Codes" />
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <QrCode className="w-5 h-5 text-emerald-600" /> QR Code Restaurant
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-center">
-            {restaurantQr?.qrCode ? (
-              <div className="space-y-4">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={restaurantQr.qrCode} alt="QR Code" className="w-48 h-48 mx-auto" />
-                <p className="text-sm text-gray-500 break-all">{restaurantQr.url}</p>
-                <div className="flex gap-2 justify-center">
-                  <Button variant="outline" size="sm" className="gap-1">
-                    <Download className="w-4 h-4" /> PNG
-                  </Button>
-                  <Button variant="outline" size="sm" className="gap-1">
-                    <Printer className="w-4 h-4" /> Imprimer
-                  </Button>
-                </div>
+      <Tabs defaultValue="main">
+        <TabsList>
+          <TabsTrigger value="main">QR Principal</TabsTrigger>
+          <TabsTrigger value="tables">QR Tables ({tableQRs.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="main">
+          <Card className="border border-gray-100 shadow-sm rounded-xl max-w-md mx-auto">
+            <CardHeader className="text-center">
+              <CardTitle className="flex items-center justify-center gap-2">
+                <QrCode className="w-5 h-5 text-emerald-600" /> QR Code Principal
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center">
+              {mainQR && qrImages[mainQR.id] && (
+                <img src={qrImages[mainQR.id]} alt="QR Principal" className="w-48 h-48 rounded-xl border" />
+              )}
+              <p className="text-sm text-gray-500 mt-4 text-center">{mainQR?.url}</p>
+              <div className="flex gap-2 mt-6 w-full">
+                <Button size="sm" variant="outline" className="flex-1" onClick={() => restaurant && downloadQRPNG(getMenuUrl(restaurant.slug), 'qrcode-main.png')}>
+                  <Download className="w-4 h-4 mr-1" /> PNG
+                </Button>
+                <Button size="sm" variant="outline" className="flex-1" onClick={() => restaurant && downloadQRSVG(getMenuUrl(restaurant.slug), 'qrcode-main.svg')}>
+                  <Download className="w-4 h-4 mr-1" /> SVG
+                </Button>
+                <Button size="sm" variant="outline" className="flex-1" onClick={() => mainQR && qrImages[mainQR.id] && printQRCode(qrImages[mainQR.id], restaurant?.name || '')}>
+                  <Printer className="w-4 h-4 mr-1" /> Imprimer
+                </Button>
+                <Button size="sm" variant="outline" className="flex-1" onClick={() => restaurant && shareQRCode(getMenuUrl(restaurant.slug), restaurant.name)}>
+                  <Share2 className="w-4 h-4 mr-1" /> Partager
+                </Button>
               </div>
-            ) : (
-              <Button onClick={() => api.post(`/api/restaurants/my/qr`).then(setRestaurantQr)}>
-                Générer le QR Code
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>QR Codes par Table</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {tables.map((table) => (
-                <div key={table.id} className="text-center p-3 border rounded-lg">
-                  <p className="font-medium mb-2">Table {table.number}</p>
-                  {table.qrCode ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={table.qrCode} alt={`Table ${table.number}`} className="w-24 h-24 mx-auto" />
-                  ) : (
-                    <Button variant="outline" size="sm" onClick={() => generateTableQr(table.id)}>
-                      Générer
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+        <TabsContent value="tables">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {tableQRs.map((qr) => (
+              <Card key={qr.id} className="border border-gray-100 shadow-sm rounded-xl">
+                <CardContent className="p-4 flex flex-col items-center">
+                  <p className="font-medium text-sm mb-2">Table {qr.tableNumber}</p>
+                  {qrImages[qr.id] && <img src={qrImages[qr.id]} alt={`Table ${qr.tableNumber}`} className="w-28 h-28" />}
+                  <Button size="sm" variant="outline" className="mt-3 w-full text-xs" onClick={() => downloadQRPNG(qr.url, `table-${qr.tableNumber}.png`)}>
+                    <Download className="w-3 h-3 mr-1" /> Télécharger
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

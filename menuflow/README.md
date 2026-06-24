@@ -1,175 +1,81 @@
 # MenuFlow
 
-**Plateforme SaaS de menus digitaux pour restaurants, cafés, snacks, hôtels et food courts au Maroc.**
+Premium SaaS platform for restaurant digital menus, real-time orders, and management — built for the Moroccan market.
 
-MenuFlow permet aux restaurants de créer un menu digital accessible via QR Code, gérer les commandes en temps réel, les réservations, les clients, les statistiques, les paiements et l'abonnement.
+## Tech Stack
 
-## Stack Technique
+- **Frontend:** Next.js 15, TypeScript, Tailwind CSS, Shadcn UI, Framer Motion, Recharts
+- **Backend:** Firebase (Auth, Firestore, Storage, Cloud Functions, FCM, Hosting)
 
-| Couche | Technologies |
-|--------|-------------|
-| Frontend | Next.js 15, TypeScript, Tailwind CSS, Shadcn UI, Framer Motion, Recharts |
-| Backend | Node.js, Express.js, PostgreSQL, Prisma ORM, Redis, Socket.io |
-| Auth | JWT + Refresh Tokens, RBAC multi-tenant (Super Admin, Restaurant Owner, Manager, Employee) |
-| Paiements | Stripe (+ PayPal, CMI, Payzone prévus) |
-| Infra | Docker, AWS S3, Cloudflare CDN, GitHub Actions CI/CD |
+## Quick Start (Demo Mode)
 
-## Structure du Projet
-
-```
-menuflow/
-├── apps/
-│   ├── api/          # Backend Express.js + Prisma + Socket.io
-│   └── web/          # Frontend Next.js 15
-├── packages/
-│   └── shared/       # Types et constantes partagés
-├── docker-compose.yml
-└── .github/workflows/ci.yml
-```
-
-## Modèle Commercial
-
-**Plateforme fermée (invitation uniquement)** — les restaurants ne peuvent pas s'inscrire eux-mêmes.
-
-- Seul le **Super Admin** crée, active, suspend ou supprime les comptes restaurant
-- Onboarding personnalisé par le propriétaire de la plateforme
-- Isolation stricte des données par `restaurantId` (multi-tenant)
-
-## Rôles
-
-| Rôle | Accès |
-|------|-------|
-| `SUPER_ADMIN` | Panel admin complet, tous les restaurants |
-| `RESTAURANT_OWNER` | Dashboard de son restaurant uniquement |
-| `MANAGER` | Opérations restaurant (menu, commandes, réservations) |
-| `EMPLOYEE` | Commandes et cuisine uniquement |
-
-## Démarrage Rapide
-
-### Prérequis
-
-- Node.js 20+
-- Docker & Docker Compose
-- PostgreSQL 16 (via Docker)
-
-### Installation
+The app runs in **demo mode** without Firebase credentials. Demo data is pre-loaded.
 
 ```bash
 cd menuflow
-
-# Copier les variables d'environnement
-cp .env.example .env
-
-# Démarrer PostgreSQL et Redis
-docker compose up postgres redis -d
-
-# Installer les dépendances
 npm install
-
-# Générer le client Prisma
-npm run db:generate
-
-# Appliquer les migrations
-npm run db:migrate
-
-# Peupler la base de données
-npm run db:seed
-
-# Lancer en développement
 npm run dev
 ```
 
-L'application sera disponible sur :
-- **Frontend** : http://localhost:3000
-- **API** : http://localhost:4000
-- **API Docs (Swagger)** : http://localhost:4000/api/docs
+Open [http://localhost:3000](http://localhost:3000)
 
-### Comptes de Test
+### Demo Credentials
 
-| Rôle | Email | Mot de passe |
-|------|-------|-------------|
-| Super Admin | admin@menuflow.ma | Admin123! | http://localhost:3000/admin |
-| Propriétaire | owner@leriad-casa.ma | Owner123! | http://localhost:3000/dashboard |
-| Manager | manager@leriad-casa.ma | Owner123! | http://localhost:3000/dashboard |
+| Role | Email | Password |
+|------|-------|----------|
+| Super Admin | admin@menuflow.ma | demo1234 |
+| Restaurant Owner | owner@legourmet.ma | demo1234 |
 
-### Menu Démo
+### Demo URLs
 
-http://localhost:3000/menu/le-riad-casablanca
+- Landing: `/`
+- Restaurant Dashboard: `/dashboard`
+- Super Admin: `/admin`
+- Customer Menu (mobile): `/r/le-gourmet`
 
-## Fonctionnalités
+## Firebase Setup
 
-### Super Admin Panel (`/admin`)
-
-- Dashboard global (restaurants, revenus, croissance)
-- Gestion restaurants (créer, suspendre, activer, supprimer)
-- Gestion utilisateurs (reset password, impersonation)
-- Abonnements et expirations
-- Monitoring (commandes, réservations)
-- Audit logs et historique connexions
-- Backups manuels/automatiques
-- Paramètres plateforme
-
-### Dashboard Restaurant (`/dashboard`)
-- Dashboard avec statistiques temps réel
-- Gestion du menu (catégories, produits, promotions)
-- Commandes en temps réel avec Socket.io
-- Vue cuisine dédiée
-- Gestion des réservations
-- CRM clients avec points de fidélité
-- Centre QR Code (restaurant + tables)
-- Analytics avancés (revenus, heures de pointe, rétention)
-- Gestion des employés et rôles
-- Système d'abonnement (Free, Starter, Premium, Enterprise)
-- Paramètres restaurant
-
-### Application Client (Mobile Web)
-- Menu digital multilingue (FR, AR, EN)
-- Recherche et filtres
-- Panier et commande
-- Suivi de commande temps réel
-- Avis et notes
-
-### Fonctionnalités IA
-- Générateur de descriptions de menu
-- Analyse des ventes
-- Recommandations de promotions
-- Prédiction comportement client
-- Chatbot client
-
-### Super Admin
-- Gestion de tous les restaurants
-- Statistiques plateforme
-- Gestion des abonnements
-
-## API REST
-
-Documentation Swagger complète disponible sur `/api/docs`.
-
-Endpoints principaux :
-- `POST /api/auth/login` - Connexion
-- `GET /api/admin/dashboard` - Stats plateforme (Super Admin)
-- `POST /api/admin/restaurants` - Créer restaurant + propriétaire
-- `POST /api/admin/restaurants/:id/suspend` - Suspendre
-- `POST /api/admin/restaurants/:id/impersonate` - Connexion en tant que propriétaire
-- `GET /api/restaurants/slug/:slug` - Menu public
-- `POST /api/restaurants/:id/orders` - Créer commande (client)
-
-## Docker (Production)
+1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
+2. Enable Authentication (Email/Password)
+3. Create Firestore database
+4. Enable Storage
+5. Copy `.env.example` to `apps/web/.env.local` and fill in values
+6. Deploy rules and functions:
 
 ```bash
-docker compose up -d
+firebase login
+firebase deploy --only firestore:rules,storage
+cd functions && npm install && npm run build
+firebase deploy --only functions
 ```
 
-## Sécurité
+7. Seed demo data (after configuring Firebase Admin):
 
-- JWT avec refresh tokens + historique connexions
-- RBAC granulaire par rôle
-- **Isolation multi-tenant** : middleware `enforceTenantAccess` sur toutes les routes restaurant
-- Vérification restaurant actif (non suspendu)
-- Rate limiting (200 req/15min)
-- Helmet.js, validation Zod, audit logs complets
-- Impersonation tracée dans les audit logs
+```bash
+npx ts-node scripts/seed.ts
+```
 
-## Licence
+## Project Structure
 
-Propriétaire - MenuFlow © 2026
+```
+menuflow/
+├── apps/web/          # Next.js 15 application
+├── functions/           # Firebase Cloud Functions
+├── firestore.rules    # Multi-tenant security rules
+├── firestore.indexes.json
+├── storage.rules
+└── firebase.json
+```
+
+## Features
+
+- **Super Admin Panel** — Create restaurants, manage users, subscriptions, monitoring
+- **Restaurant Dashboard** — KPIs, charts, orders, menu management, QR codes
+- **Customer Mobile Flow** — QR scan → menu → cart → order → tracking (FR/EN/AR)
+- **Multi-tenant** — Isolated data per restaurant with `restaurantId`
+- **Real-time** — Firestore listeners for orders and tracking
+- **FCM** — Push notifications for new orders
+
+## Business Model
+
+Restaurants cannot self-register. Only the platform owner (Super Admin) creates restaurant accounts.

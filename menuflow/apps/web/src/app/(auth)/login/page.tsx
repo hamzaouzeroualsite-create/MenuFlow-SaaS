@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,8 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { api } from '@/lib/api';
-import { useAuthStore } from '@/lib/store';
+import { useAuth } from '@/contexts/auth-context';
 
 const loginSchema = z.object({
   email: z.string().email('Email invalide'),
@@ -23,29 +21,21 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const setAuth = useAuthStore((s) => s.setAuth);
+  const { login, isDemo } = useAuth();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
+    defaultValues: { email: 'owner@legourmet.ma', password: 'demo1234' },
   });
 
   const onSubmit = async (data: LoginForm) => {
     setLoading(true);
     setError('');
     try {
-      const result = await api.post<{
-        accessToken: string;
-        refreshToken: string;
-        user: { id: string; name: string; email: string; role: string; restaurantId?: string; restaurant?: unknown };
-      }>('/api/auth/login', data);
-      setAuth(result.user as Parameters<typeof setAuth>[0], result.accessToken, result.refreshToken);
-      if (result.user.role === 'SUPER_ADMIN') {
-        router.push('/admin');
-      } else {
-        router.push('/dashboard');
-      }
+      const user = await login(data.email, data.password);
+      router.push(user.role === 'SUPER_ADMIN' ? '/admin' : '/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de connexion');
     } finally {
@@ -54,21 +44,26 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
+    <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB] px-4">
+      <Card className="w-full max-w-md border border-gray-100 shadow-lg rounded-xl">
+        <CardHeader className="text-center pb-2">
           <div className="flex justify-center mb-4">
-            <div className="w-12 h-12 rounded-xl gradient-emerald flex items-center justify-center">
-              <QrCode className="w-7 h-7 text-white" />
+            <div className="w-14 h-14 rounded-xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-200">
+              <QrCode className="w-8 h-8 text-white" />
             </div>
           </div>
-          <CardTitle className="text-2xl">Connexion</CardTitle>
-          <CardDescription>Accédez à votre tableau de bord MenuFlow</CardDescription>
+          <CardTitle className="text-2xl font-bold">Menu<span className="text-emerald-600">Flow</span></CardTitle>
+          <CardDescription className="mt-2">Accédez à votre tableau de bord</CardDescription>
         </CardHeader>
         <CardContent>
+          {isDemo && (
+            <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+              <strong>Mode démo</strong> — Utilisez owner@legourmet.ma / demo1234 ou admin@menuflow.ma / demo1234
+            </div>
+          )}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {error && (
-              <div className="p-3 rounded-lg bg-red-50 text-red-600 text-sm">{error}</div>
+              <div className="p-3 rounded-lg bg-red-50 text-red-600 text-sm border border-red-100">{error}</div>
             )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -80,7 +75,7 @@ export default function LoginPage() {
               <Input id="password" type="password" {...register('password')} />
               {errors.password && <p className="text-sm text-red-500">{errors.password.message}</p>}
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={loading}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Se connecter'}
             </Button>
           </form>
